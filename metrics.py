@@ -1,3 +1,5 @@
+import os
+from itertools import combinations
 import cv2
 import numpy as np
 from scipy.linalg import svd
@@ -67,34 +69,34 @@ def constrained_mutual_subspace_method(image_path1, image_path2, n_components=10
     
     return similarity
 
-##take two images from data_new directory and compare them to get minimum similarity and maximum similarity
-import os
-from itertools import combinations
 
-image_files = [f for f in os.listdir('data_new') if f.endswith('.jpg')]
-image_combinations = list(combinations(image_files, 2))
+    
+def find_image_similarity(image_dir, n_components=10, constraint_dim=5):
+    image_files = [f for f in os.listdir(image_dir) if f.endswith('.jpg')]
+    image_combinations = list(combinations(image_files, 2))
 
-min_similarity = float('inf')
-max_similarity = float('-inf')
+    min_similarity = float('inf')
+    max_similarity = float('-inf')
 
-min_similarity_pair = None
-max_similarity_pair = None
+    min_similarity_pair = None
+    max_similarity_pair = None
 
-for image1, image2 in image_combinations:
-    image_path1 = os.path.join('data_new', image1)
-    image_path2 = os.path.join('data_new', image2)
+    for image1, image2 in image_combinations:
+        image_path1 = os.path.join(image_dir, image1)
+        image_path2 = os.path.join(image_dir, image2)
+
+        similarity = constrained_mutual_subspace_method(image_path1, image_path2, n_components, constraint_dim)
+
+        if similarity < min_similarity:
+            min_similarity = similarity
+            min_similarity_pair = (image1, image2)
+
+        if similarity > max_similarity:
+            max_similarity = similarity
+            max_similarity_pair = (image1, image2)
+
+    return min_similarity, min_similarity_pair, max_similarity, max_similarity_pair
+
     
-    similarity = constrained_mutual_subspace_method(image_path1, image_path2)
-    
-    if similarity < min_similarity:
-        min_similarity = similarity
-        min_similarity_pair = (image1, image2)
-    
-    if similarity > max_similarity:
-        max_similarity = similarity
-        max_similarity_pair = (image1, image2)
-    
-print(f"Minimum similarity: {min_similarity} between images {min_similarity_pair}")
-print(f"Maximum similarity: {max_similarity} between images {max_similarity_pair}")
 
 
