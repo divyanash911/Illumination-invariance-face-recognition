@@ -6,7 +6,7 @@ import face_recognition
 def deep_features_similarity(image1, image2):
     image1_embedding = face_recognition.face_encodings(image1)[0]
     image2_embedding = face_recognition.face_encodings(image2)[0]
-    return 1 - cosine(image1_embedding, image2_embedding)
+    return 1 - cosine(image1_embedding.flatten(), image2_embedding.flatten())
 
 def get_best_match_using_face_recognition(query_image, dataset):
     query_embedding = face_recognition.face_encodings(query_image)[0]
@@ -15,8 +15,13 @@ def get_best_match_using_face_recognition(query_image, dataset):
     
     for gallery_image_val in dataset:
         gallery_image = gallery_image_val["image_data"]
-        gallery_embedding = face_recognition.face_encodings(gallery_image)[0]
-        similarity = 1 - cosine(query_embedding, gallery_embedding)
+        gallery_embedding = face_recognition.face_encodings(gallery_image)
+        if len(gallery_embedding) == 0:
+            print(f"No face detected for query:{gallery_image_val["query_name"]}")
+            continue
+        gallery_embedding = gallery_embedding[0]
+
+        similarity = 1 - cosine(query_embedding.flatten(), gallery_embedding.flatten())
         
         if similarity > similarity_score:
             similarity_score = similarity

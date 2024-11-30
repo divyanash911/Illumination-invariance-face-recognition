@@ -90,32 +90,5 @@ def estimate_joint_probability_persons(
     # Step 8: Normalize density to unit integral
     density /= np.sum(density)
 
-    save_to_files(alpha_grid,mu_grid,density)
     return alpha_grid, mu_grid, density
 
-def save_to_files(alpha_grid, mu_grid, density, output_dir="output"):
-    """
-    Save alpha grid, mu grid, and density to files.
-    """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
-    # Save using numpy's save functionality
-    np.save(os.path.join(output_dir, "alpha_grid.npy"), alpha_grid)
-    np.save(os.path.join(output_dir, "mu_grid.npy"), mu_grid)
-    np.save(os.path.join(output_dir, "density.npy"), density)
-    print(f"Data saved in directory: {output_dir}")
-
-def load_from_files(output_dir="output"):
-    """
-    Load alpha grid, mu grid, and density from files.
-    """
-    try:
-        alpha_grid = np.load(os.path.join(output_dir, "alpha_grid.npy"))
-        mu_grid = np.load(os.path.join(output_dir, "mu_grid.npy"))
-        density = np.load(os.path.join(output_dir, "density.npy"))
-        print(f"Data loaded from directory: {output_dir}")
-        return alpha_grid, mu_grid, density
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        return None, None, None

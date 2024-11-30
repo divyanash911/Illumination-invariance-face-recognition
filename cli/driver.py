@@ -11,10 +11,13 @@ from similarity import *
 from filters import *
 
 
-def preview_image(image):
+def preview_image(image, title=""):
     """Display image using matplotlib."""
     plt.imshow(image, cmap="gray")
     plt.axis("off")
+    plt.title(title)
+    if title:
+        plt.savefig(title + ".png")
     plt.show()
 
 
@@ -28,7 +31,12 @@ def cli_main():
                         choices=["cosine", "mutual_subspace"], help="Similarity method to use")
     parser.add_argument("--filter", type=str, default="homomorphic_filter", choices=[
                         "self_quotient", "gaussian_highpass", "laplacian_of_gaussian", "homomorphic_filter", "edge_map", "cannys_edge_detector"], help="Filtering method to use")
-    parser.add_argument("--inference",type=bool,default=True,choices=[True,False],help="Choose whether to run the model or inference")
+    parser.add_argument("--inference", type=bool, default=True,
+                        choices=[True, False], help="Choose whether to run the model or inference")
+    parser.add_argument("--grid-size", type=int, default=100,
+                        help="Size of the alpha and mu grids for joint probability density estimation")
+    parser.add_argument("--itterations", type=int, default=500,
+                        help="Number of iterations for joint probability density estimation")
 
     args = parser.parse_args()
 
@@ -52,8 +60,12 @@ def cli_main():
                 image_idx = idx
                 break
 
+    # Make the output directory
+    if not os.path.isdir("output"):
+        os.mkdir("output")
+
     # Display query image
-    preview_image(query_image)
+    preview_image(query_image, "query_image")
 
     # Load dataset
     dataset = []
@@ -78,19 +90,20 @@ def cli_main():
         print(f"Illumination :{dataset[i]['illumination']}")
         preview_image(dataset[i]['image_data'])
 
-    # Estimate joint probability density 
-    
+    # Estimate joint probability density
+
     if args.inference == True:
         alpha_grid, mu_grid, density = load_from_files()
     else:
         alpha_grid, mu_grid, density = estimate_joint_probability_persons(
             dataset,
             self_quotient_image,
-            similarity_method,  
-            alpha_grid_size=100,
-            mu_grid_size=100,
-            n_iter=500
+            similarity_method,
+            alpha_grid_size=args.grid_size,
+            mu_grid_size=args.grid_size,
+            n_iter=args.itterations,
         )
+        save_to_files(alpha_grid, mu_grid, density)
 
     # plot the alpha mu density landscape
     plot_density(alpha_grid, mu_grid, density, epoch=500)
@@ -121,17 +134,17 @@ def cli_main():
         print("4. View best match using pretrained face recognition model")
         print("5. View image similarities with dataset")
         print("6. Exit")
-        choice = input("Enter your choice (1-4): ")
+        choice = input("Enter your choice (1-6): ")
 
         if choice == "1":
             print("Query Image:")
             preview_image(query_image)
         elif choice == "2":
             print("Best Match Image:")
-            preview_image(best_match["image_data"])
+            preview_image(best_match["image_data"], "best_match_image")
         elif choice == "3":
             print("Unfiltered Best Match Image:")
-            preview_image(unmatched)
+            preview_image(unmatched, "unfiltered_best_match_image")
         elif choice == "4":
             query_img_dl = face_recognition.load_image_file(args.query_path)
             dataset_dl = []
@@ -145,14 +158,14 @@ def cli_main():
                 })
 
             # get the best match image using face recognition model
-            deep_learning_best_match, similarity_score = get_best_match_using_face_recognition(
+            deep_learning_best_match, similarity_score_dl = get_best_match_using_face_recognition(
                 query_img_dl, dataset_dl)
             print("Best Match Image using Face Recognition Model:")
             print(f"Subject ID: {deep_learning_best_match['subject_id']}")
             print(f"Illumination: {deep_learning_best_match['illumination']}")
-            print(f"Similarity Score: {similarity_score:.4f}")
+            print(f"Similarity Score: {similarity_score_dl:.4f}")
 
-            preview_image(deep_learning_best_match["image_data"])
+            preview_image(deep_learning_best_match["image_data"], "deep_learning_best_match")
 
         elif choice == "5":
             try:
@@ -161,7 +174,7 @@ def cli_main():
             except ValueError:
                 print("Invalid input. Using default value of 25.")
                 top_n = 25
-                
+
             print("Visualizing Similarities...")
             visualize_similarities(
                 query_image, dataset, filter_method, similarity_method, alpha_grid, mu_grid, density, query_index, top_n=top_n

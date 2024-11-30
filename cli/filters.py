@@ -20,7 +20,6 @@ def gradient_filters(image):
 
 def homomorphic_filter(image, sigma=1.0, alpha=0.5, beta=1.0):
     rows, cols = image.shape
-    center_row, center_col = rows // 2, cols // 2
 
     img_log = np.log(np.float64(image), dtype=np.float64)
     img_fft = np.fft.fft2(img_log, axes=(0, 1))
