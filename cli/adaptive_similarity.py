@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
-
+import os 
 
 def adaptive_similarity(query_image, gallery_images, filter_function, similarity_function):
     """Calculate adaptive similarity using confusion margin."""
@@ -23,7 +23,7 @@ def estimate_joint_probability_persons(
     training_data, filter_function, similarity_function, alpha_grid_size, mu_grid_size, n_iter=500
 ):
     """
-    Estimate joint probability density function of α and μ using adaptive similarity.
+    Corrected implementation of joint probability density estimation.
     """
     alpha_grid = np.linspace(0, 1, alpha_grid_size)
     mu_grid = np.linspace(0, 1, mu_grid_size)
@@ -56,18 +56,12 @@ def estimate_joint_probability_persons(
                 similarities_other_persons.append((sim_raw, sim_filtered))
 
         # Step 3: Compute confusion margin (μ)
-        # if len(similarities_same_person) >= 2:
-        #     top_1_sim = max(sim[0] for sim in similarities_same_person)
-        #     top_2_sim = max(
-        #         sim[0] for sim in similarities_same_person if sim[0] != top_1_sim)
-        #     mu = top_1_sim - top_2_sim
-        # else:
-        #     mu = 0
-
-        mu = max(
-            sim[0] for sim in similarities_same_person
-        ) - max(sim[0] for sim in similarities_other_persons)
-
+        if len(similarities_same_person) >= 2:
+            top_1_sim = max(sim[0] for sim in similarities_same_person)
+            top_2_sim = max(sim[0] for sim in similarities_same_person if sim[0] != top_1_sim)
+            mu = top_1_sim - top_2_sim
+        else:
+            mu = 0
         mu_idx = np.argmin(np.abs(mu_grid - mu))
 
         # Step 4: Iterate over α grid
@@ -82,8 +76,7 @@ def estimate_joint_probability_persons(
 
             # Compute numerator and denominator for δ(kΔα)
             numerator = max(similarity_query) if similarity_query else 0
-            # Avoid division by zero
-            denominator = max(similarity_other) if similarity_other else 1
+            denominator = max(similarity_other) if similarity_other else 1  # Avoid division by zero
 
             delta = numerator / denominator if denominator != 0 else 0
 
@@ -97,4 +90,32 @@ def estimate_joint_probability_persons(
     # Step 8: Normalize density to unit integral
     density /= np.sum(density)
 
+    save_to_files(alpha_grid,mu_grid,density)
     return alpha_grid, mu_grid, density
+
+def save_to_files(alpha_grid, mu_grid, density, output_dir="output"):
+    """
+    Save alpha grid, mu grid, and density to files.
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Save using numpy's save functionality
+    np.save(os.path.join(output_dir, "alpha_grid.npy"), alpha_grid)
+    np.save(os.path.join(output_dir, "mu_grid.npy"), mu_grid)
+    np.save(os.path.join(output_dir, "density.npy"), density)
+    print(f"Data saved in directory: {output_dir}")
+
+def load_from_files(output_dir="output"):
+    """
+    Load alpha grid, mu grid, and density from files.
+    """
+    try:
+        alpha_grid = np.load(os.path.join(output_dir, "alpha_grid.npy"))
+        mu_grid = np.load(os.path.join(output_dir, "mu_grid.npy"))
+        density = np.load(os.path.join(output_dir, "density.npy"))
+        print(f"Data loaded from directory: {output_dir}")
+        return alpha_grid, mu_grid, density
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return None, None, None
