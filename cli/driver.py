@@ -1,80 +1,125 @@
-from filters import gaussian_highpass, self_quotient_image
-from similarity import cosine_similarity
-from data_utils import load_image, load_dataset, load_paths
-from visualization import plot_similarity_scores
-import face_recognition
+import os
+import glob
+import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 
-def deep_learning_similarity(query_image_path, gallery_image_paths):
-    """
-    Computes similarity scores using deep learning-based face recognition.
+from adaptive_similarity import *
+from data_utils import *
+from visualization import *
+from similarity import *
+from filters import *
 
-    Parameters:
-    - query_image_path (str): Path to the query image.
-    - gallery_image_paths (list): List of paths to gallery images.
+def preview_image(image):
+    """Display image using matplotlib."""
+    plt.imshow(image, cmap="gray")
+    plt.axis("off")
+    plt.show()
 
-    Returns:
-    - scores (list): Similarity scores between the query image and each gallery image.
-    """
-    try:
-        # Load query image as RGB
-        query_image = face_recognition.load_image_file(query_image_path)
-        query_encodings = face_recognition.face_encodings(query_image)
-        if not query_encodings:
-            raise ValueError("No face detected in query image.")
-        query_encoding = query_encodings[0]
+def cli_main():
+    parser = argparse.ArgumentParser(description="Face Matching CLI Tool")
+    parser.add_argument("--data-dir", type=str, required=True, help="Path to the directory containing the gallery images")
+    parser.add_argument("--query-path", type=str, required=True, help="Path to the query image")
+    parser.add_argument("--method", type=str, default="cosine", choices=["cosine", "mutual_subspace"], help="Similarity method to use")
+    args = parser.parse_args()
 
-        scores = []
-        for gallery_image_path in gallery_image_paths:
-            # Load gallery image as RGB
-            gallery_image = face_recognition.load_image_file(gallery_image_path)
-            gallery_encodings = face_recognition.face_encodings(gallery_image)
-            if not gallery_encodings:
-                print(f"Warning: No face detected in gallery image {gallery_image_path}. Skipping...")
-                scores.append(0)
-                continue
+    similarity_method = mutual_subspace_method if args.method == "mutual_subspace" else cosine_similarity
 
-            gallery_encoding = gallery_encodings[0]
-            # Compute similarity (inverse of face distance)
-            score = 1 - face_recognition.face_distance([query_encoding], gallery_encoding)[0]
-            scores.append(score)
+    # Load query image
+    if not os.path.exists(args.query_path):
+        print(f"Error: Query image '{args.query_path}' not found.")
+        return
+    query_image = load_image(args.query_path)
+    print("Query image loaded successfully.")
 
-        return scores
-    except Exception as e:
-        print(f"Error during deep learning similarity computation: {e}")
-        return []
+    # Display query image
+    preview_image(query_image)
 
-def driver_comparative():
-    """
-    Driver script for comparative study.
-    """
-    print("Starting Comparative Study for Face Recognition Methods.")
+    # Load dataset
+    dataset = []
+    if not os.path.exists(args.data_dir):
+        print(f"Error: Data directory '{args.data_dir}' not found.")
+        return
+    for file in glob.glob(os.path.join(args.data_dir, "*.jpg")):
+        subject_id = extract_subject_id(file)
+        illumination = extract_subject_lighting(file)
+        image_data = load_image(file)
+        dataset.append({
+            "subject_id": subject_id,
+            "illumination": illumination,
+            "image_data": image_data,
+            "query_name": os.path.basename(file)
+        })
+    print(f"Loaded {len(dataset)} gallery images.")
 
-    # Load query and gallery dataset
-    query_image_path = "../query.jpg"
-    gallery_path = "../data_new/"
+    # Display first 3 gallery images
+    for i in range(min(3, len(dataset))):
+        print(f"Subject ID: {dataset[i]['subject_id']}")
+        print(f"Illumination :{dataset[i]['illumination']}")
+        preview_image(dataset[i]['image_data'])
 
-    gallery_images = load_dataset(gallery_path)
-    query_image = load_image(query_image_path)
+    # Estimate joint probability density 
+    alpha_grid, mu_grid, density = estimate_joint_probability_persons(
+        dataset,
+        self_quotient_image,
+        similarity_method,  
+        alpha_grid_size=100,
+        mu_grid_size=100,
+        n_iter=500
+    )
 
-    gallery_image_paths = load_paths(gallery_path)
-    
-    # Filter-based pipeline
-    print("\nComputing similarity using filter-based pipeline...")
-    sq_filter_scores = [
-        cosine_similarity(self_quotient_image(query_image), self_quotient_image(img))
-        for img in gallery_images
-    ]
-    # print("Filter-based scores:", sq_filter_scores)
+    # plot the alpha mu density landscape
+    plot_density(alpha_grid, mu_grid, density, epoch=500)
 
-    # Deep learning-based face recognition
-    print("\nComputing similarity using deep learning-based solution...")
-    dl_scores = deep_learning_similarity(query_image_path, gallery_image_paths)
-    # print("Deep learning-based scores:", dl_scores)
+    # Match query image
+    query_index = -1  # Set query index for comparison, if needed
+    best_match, similarity_score, alpha, unmatched = match_faces(
+        query_image,
+        dataset,
+        self_quotient_image,
+        similarity_method,  
+        alpha_grid,
+        mu_grid,
+        density,
+        query_index
+    )
 
-    # Plot comparison
-    labels = [f"Image {i+1}" for i in range(len(gallery_images))]
-    plot_similarity_scores([d - s for d, s in zip(dl_scores, sq_filter_scores)], labels, save=True)
+    # get the best match image using face recognition model
+    deep_learning_best_match = get_best_match_using_face_recognition(query_image, dataset)
+
+    # Display results
+    while True:
+        print("\nFace Matching Results:")
+        print(f"Best Match Similarity Score: {similarity_score:.4f}")
+        print(f"Optimal Alpha: {alpha:.4f}")
+        print(f"Best Match Subject: {best_match['subject_id']}, Illumination: {best_match['illumination']}")
+        print("1. View query image")
+        print("2. View best match image")
+        print("3. View unmatched image")
+        print("4. View best match using pretrained face recognition model")
+        print("5. Exit")
+        choice = input("Enter your choice (1-4): ")
+
+        if choice == "1":
+            print("Query Image:")
+            preview_image(query_image)
+        elif choice == "2":
+            print("Best Match Image:")
+            preview_image(best_match["image_data"])
+        elif choice == "3":
+            print("Unfiltered Best Match Image:")
+            preview_image(unmatched)
+        elif choice == "4":
+            print("Best Match Image using Face Recognition Model:")
+            print(f"Subject ID: {deep_learning_best_match['subject_id']}")
+            print(f"Illumination: {deep_learning_best_match['illumination']}")
+            preview_image(deep_learning_best_match["image_data"])
+            
+        elif choice == "5":
+            print("Exiting program.")
+            break
+        else:
+            print("Invalid choice. Please select a valid option.")
 
 if __name__ == "__main__":
-    driver_comparative()
+    cli_main()
