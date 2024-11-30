@@ -31,8 +31,8 @@ def cli_main():
                         choices=["cosine", "mutual_subspace"], help="Similarity method to use")
     parser.add_argument("--filter", type=str, default="homomorphic_filter", choices=[
                         "self_quotient", "gaussian_highpass", "laplacian_of_gaussian", "homomorphic_filter", "edge_map", "cannys_edge_detector"], help="Filtering method to use")
-    parser.add_argument("--inference", type=bool, default=True,
-                        choices=[True, False], help="Choose whether to run the model or inference")
+    parser.add_argument("--inference", type=str, default='True',
+                        choices=['True', 'False'], help="Choose whether to run the model or inference")
     parser.add_argument("--grid-size", type=int, default=100,
                         help="Size of the alpha and mu grids for joint probability density estimation")
     parser.add_argument("--itterations", type=int, default=500,
@@ -41,8 +41,9 @@ def cli_main():
     args = parser.parse_args()
 
     similarity_method = mutual_subspace_method if args.method == "mutual_subspace" else cosine_similarity
-    filter_method = self_quotient_image if args.filter == "self_quotient" else globals()[
-        args.filter]
+    filter_method = self_quotient_image if args.filter == "self_quotient" else globals()[ args.filter]
+    
+    print(filter_method)
 
     # Load query image
     if not os.path.exists(args.query_path):
@@ -76,6 +77,8 @@ def cli_main():
         subject_id = extract_subject_id(file)
         illumination = extract_subject_lighting(file)
         image_data = load_image(file)
+        basename = os.path.basename(file)
+        
         dataset.append({
             "subject_id": subject_id,
             "illumination": illumination,
@@ -91,13 +94,14 @@ def cli_main():
         preview_image(dataset[i]['image_data'])
 
     # Estimate joint probability density
+    preview_image(filter_method(query_image))
 
-    if args.inference == True:
+    if args.inference == 'True':
         alpha_grid, mu_grid, density = load_from_files()
     else:
         alpha_grid, mu_grid, density = estimate_joint_probability_persons(
             dataset,
-            self_quotient_image,
+            filter_method,
             similarity_method,
             alpha_grid_size=args.grid_size,
             mu_grid_size=args.grid_size,
@@ -126,8 +130,7 @@ def cli_main():
         print("\nFace Matching Results:")
         print(f"Best Match Similarity Score: {similarity_score:.4f}")
         print(f"Optimal Alpha: {alpha:.4f}")
-        print(f"Best Match Subject: {best_match['subject_id']}, Illumination: {
-              best_match['illumination']}")
+        print(f"Best Match Subject: {best_match['subject_id']}, Illumination: {best_match['illumination']}")
         print("1. View query image")
         print("2. View best match image")
         print("3. View unmatched image")

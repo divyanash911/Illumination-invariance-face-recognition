@@ -59,39 +59,39 @@ def visualize_similarities(query_image, dataset, filter_function, similarity_fun
     top_similarities = similarities[:top_n]
 
     # Create the grid for the query image and top matches
-    n_cols = 5
-    n_rows = math.ceil((top_n + 1) / n_cols)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 3 * n_rows))
-    axes = axes.flatten()
+    # n_cols = 5
+    # n_rows = math.ceil((top_n + 1) / n_cols)
+    # fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 3 * n_rows))
+    # axes = axes.flatten()
 
-    # Display the query image
-    axes[0].imshow(query_image, cmap='gray')
-    axes[0].set_title('Query Image', fontsize=10, pad=10)
-    axes[0].axis('off')
+    # # Display the query image
+    # axes[0].imshow(query_image, cmap='gray')
+    # axes[0].set_title('Query Image', fontsize=10, pad=10)
+    # axes[0].axis('off')
 
-    # Display the top matches with improved spacing
-    for i, sim_data in enumerate(top_similarities, start=1):
-        axes[i].imshow(sim_data['image'], cmap='gray')
-        axes[i].set_title(
-            f"ID: {sim_data['subject_id']}\nCombined: {sim_data['combined_sim']:.2f}\nUnprocessed: {sim_data['unprocessed_sim']:.2f}",
-            fontsize=8,
-            pad=15  # Add padding between the image and text
-        )
-        axes[i].axis('off')
+    # # Display the top matches with improved spacing
+    # for i, sim_data in enumerate(top_similarities, start=1):
+    #     axes[i].imshow(sim_data['image'], cmap='gray')
+    #     axes[i].set_title(
+    #         f"ID: {sim_data['subject_id']}\nCombined: {sim_data['combined_sim']:.2f}\nUnprocessed: {sim_data['unprocessed_sim']:.2f}",
+    #         fontsize=8,
+    #         pad=15  # Add padding between the image and text
+    #     )
+    #     axes[i].axis('off')
 
-    # Hide any unused subplots
-    for i in range(len(top_similarities) + 1, len(axes)):
-        axes[i].axis('off')
+    # # Hide any unused subplots
+    # for i in range(len(top_similarities) + 1, len(axes)):
+    #     axes[i].axis('off')
 
-    # Adjust layout for spacing using subplots_adjust
-    fig.subplots_adjust(wspace=0.5, hspace=1.5)
+    # # Adjust layout for spacing using subplots_adjust
+    # fig.subplots_adjust(wspace=0.5, hspace=1.5)
     
-    # Save the plot if required
-    if save:
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        plt.savefig(os.path.join(output_dir, "similarities_with_spacing.png"))
-    plt.show()
+    # # Save the plot if required
+    # if save:
+    #     if not os.path.exists(output_dir):
+    #         os.makedirs(output_dir)
+    #     plt.savefig(os.path.join(output_dir, "similarities_with_spacing.png"))
+    # plt.show()
 
     """Visualize the top N matches for the query image with improved spacing between images and text."""
     unprocessed_similarities = []
@@ -121,8 +121,8 @@ def visualize_similarities(query_image, dataset, filter_function, similarity_fun
             'image': gallery_image,
             'subject_id': gallery_image_val['subject_id'],
             'illumination': gallery_image_val['illumination'],
-            'combined_sim': unprocessed_sim,
-            'unprocessed_sim': combined_similarity
+            'combined_sim': combined_similarity,
+            'unprocessed_sim': unprocessed_sim
         })
 
     similarities.sort(key=lambda x: x['combined_sim'], reverse=True)
@@ -191,13 +191,14 @@ def visualize_similarities(query_image, dataset, filter_function, similarity_fun
             'image': gallery_image,
             'subject_id': gallery_image_val['subject_id'],
             'illumination': gallery_image_val['illumination'],
-            'combined_sim': unprocessed_sim,
-            'unprocessed_sim': combined_similarity
+            'combined_sim': combined_similarity,
+            'unprocessed_sim': unprocessed_sim
         })
 
     similarities.sort(key=lambda x: x['combined_sim'], reverse=True)
     top_similarities = similarities[:top_n]
-
+    # Usage: Call this function after generating top_similarities in the main function.
+    plot_improvement_percentages(top_similarities)
     # Create the grid for the query image and top matches
     n_cols = 5
     n_rows = math.ceil((top_n + 1) / n_cols)
@@ -227,3 +228,41 @@ def visualize_similarities(query_image, dataset, filter_function, similarity_fun
             os.makedirs(output_dir)
         plt.savefig(os.path.join(output_dir, "similarities.png"))
     plt.show()
+    
+def plot_improvement_percentages(top_similarities, save=True, output_dir="output"):
+    """
+    Plot the improvement percentage for combined similarity scores over unprocessed similarity scores.
+    """
+    # Calculate improvement percentages
+    improvements = []
+    for sim_data in top_similarities:
+        unprocessed_sim = sim_data['unprocessed_sim']
+        combined_sim = sim_data['combined_sim']
+        improvement = ((combined_sim - unprocessed_sim) / unprocessed_sim) * 100 if unprocessed_sim != 0 else 0
+        improvements.append(improvement)
+
+    # Sort by improvement percentages (descending order)
+    sorted_data = sorted(
+        zip(range(len(improvements)), improvements),
+        key=lambda x: x[1],
+        reverse=True
+    )
+    indices, improvement_percentages = zip(*sorted_data)
+
+    # Plotting
+    plt.figure(figsize=(10, 6))
+    plt.bar(indices, improvement_percentages, color='skyblue', edgecolor='black')
+    plt.xlabel("Image Index (Sorted by Improvement)", fontsize=12)
+    plt.ylabel("Improvement (%)", fontsize=12)
+    plt.title("Improvement of Combined Similarity Over Unprocessed Similarity", fontsize=14)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+
+    # Save the plot if required
+    if save:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        plt.savefig(os.path.join(output_dir, "improvement_percentages.png"))
+    plt.show()
+
+

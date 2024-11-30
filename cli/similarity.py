@@ -17,7 +17,7 @@ def get_best_match_using_face_recognition(query_image, dataset):
         gallery_image = gallery_image_val["image_data"]
         gallery_embedding = face_recognition.face_encodings(gallery_image)
         if len(gallery_embedding) == 0:
-            print(f"No face detected for query:{gallery_image_val["query_name"]}")
+            print(f"No face detected for query:{gallery_image_val['query_name']}")
             continue
         gallery_embedding = gallery_embedding[0]
 
