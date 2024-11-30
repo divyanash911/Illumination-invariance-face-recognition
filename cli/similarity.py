@@ -22,7 +22,7 @@ def get_best_match_using_face_recognition(query_image, dataset):
             similarity_score = similarity
             best_match = gallery_image_val
     
-    return best_match
+    return best_match, similarity_score
 
 def cosine_similarity(image1, image2):
     return 1 - cosine(image1.flatten(), image2.flatten())

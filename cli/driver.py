@@ -10,21 +10,31 @@ from visualization import *
 from similarity import *
 from filters import *
 
+
 def preview_image(image):
     """Display image using matplotlib."""
     plt.imshow(image, cmap="gray")
     plt.axis("off")
     plt.show()
 
+
 def cli_main():
     parser = argparse.ArgumentParser(description="Face Matching CLI Tool")
-    parser.add_argument("--data-dir", type=str, required=True, help="Path to the directory containing the gallery images")
-    parser.add_argument("--query-path", type=str, required=True, help="Path to the query image")
-    parser.add_argument("--method", type=str, default="cosine", choices=["cosine", "mutual_subspace"], help="Similarity method to use")
+    parser.add_argument("--data-dir", type=str, required=True,
+                        help="Path to the directory containing the gallery images")
+    parser.add_argument("--query-path", type=str,
+                        required=True, help="Path to the query image")
+    parser.add_argument("--method", type=str, default="cosine",
+                        choices=["cosine", "mutual_subspace"], help="Similarity method to use")
+    parser.add_argument("--filter", type=str, default="homomorphic_filter", choices=[
+                        "self_quotient", "gaussian_highpass", "laplacian_of_gaussian", "homomorphic_filter", "edge_map", "cannys_edge_detector"], help="Filtering method to use")
     parser.add_argument("--inference",type=bool,default=True,choices=[True,False],help="Choose whether to run the model or inference")
+
     args = parser.parse_args()
 
     similarity_method = mutual_subspace_method if args.method == "mutual_subspace" else cosine_similarity
+    filter_method = self_quotient_image if args.filter == "self_quotient" else globals()[
+        args.filter]
 
     # Load query image
     if not os.path.exists(args.query_path):
@@ -90,29 +100,27 @@ def cli_main():
     best_match, similarity_score, alpha, unmatched = match_faces(
         query_image,
         dataset,
-        self_quotient_image,
-        similarity_method,  
+        filter_method,
+        similarity_method,
         alpha_grid,
         mu_grid,
         density,
         query_index
     )
 
-    # get the best match image using face recognition model
-    # deep_learning_best_match = get_best_match_using_face_recognition(query_image, dataset)
-
     # Display results
     while True:
         print("\nFace Matching Results:")
         print(f"Best Match Similarity Score: {similarity_score:.4f}")
         print(f"Optimal Alpha: {alpha:.4f}")
-        print(f"Best Match Subject: {best_match['subject_id']}, Illumination: {best_match['illumination']}")
+        print(f"Best Match Subject: {best_match['subject_id']}, Illumination: {
+              best_match['illumination']}")
         print("1. View query image")
         print("2. View best match image")
         print("3. View unmatched image")
-        # print("4. View best match using pretrained face recognition model")
-        print("4. Visualise improvement in similarities using the Adaptive weighting")
-        print("5. Exit")
+        print("4. View best match using pretrained face recognition model")
+        print("5. View image similarities with dataset")
+        print("6. Exit")
         choice = input("Enter your choice (1-4): ")
 
         if choice == "1":
@@ -125,17 +133,45 @@ def cli_main():
             print("Unfiltered Best Match Image:")
             preview_image(unmatched)
         elif choice == "4":
-            # print("Best Match Image using Face Recognition Model:")
-            # print(f"Subject ID: {deep_learning_best_match['subject_id']}")
-            # print(f"Illumination: {deep_learning_best_match['illumination']}")
-            # preview_image(deep_learning_best_match["image_data"])
-            visualize_similarities(query_image, dataset, self_quotient_image, cosine_similarity, alpha_grid, mu_grid, density, image_idx)
-            
+            query_img_dl = face_recognition.load_image_file(args.query_path)
+            dataset_dl = []
+            for file in glob.glob(os.path.join(args.data_dir, "*.jpg")):
+                image_data = face_recognition.load_image_file(file)
+                dataset_dl.append({
+                    "subject_id": extract_subject_id(file),
+                    "illumination": extract_subject_lighting(file),
+                    "image_data": image_data,
+                    "query_name": os.path.basename(file)
+                })
+
+            # get the best match image using face recognition model
+            deep_learning_best_match, similarity_score = get_best_match_using_face_recognition(
+                query_img_dl, dataset_dl)
+            print("Best Match Image using Face Recognition Model:")
+            print(f"Subject ID: {deep_learning_best_match['subject_id']}")
+            print(f"Illumination: {deep_learning_best_match['illumination']}")
+            print(f"Similarity Score: {similarity_score:.4f}")
+
+            preview_image(deep_learning_best_match["image_data"])
+
         elif choice == "5":
+            try:
+                top_n = int(
+                    input("Enter the number of top matches to visualize: "))
+            except ValueError:
+                print("Invalid input. Using default value of 25.")
+                top_n = 25
+                
+            print("Visualizing Similarities...")
+            visualize_similarities(
+                query_image, dataset, filter_method, similarity_method, alpha_grid, mu_grid, density, query_index, top_n=top_n
+            )
+        elif choice == "6":
             print("Exiting program.")
             break
         else:
             print("Invalid choice. Please select a valid option.")
+
 
 if __name__ == "__main__":
     cli_main()
