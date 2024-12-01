@@ -1,4 +1,9 @@
-# *Illumination-Invariant Face Recognition*
+# DIP PROJECT
+
+---
+
+# **Comprehensive Project Report:**
+ *Illumination-Invariant Face Recognition*
 
 ---
 
@@ -10,15 +15,19 @@ This project implements an image processing-based approach for illumination-inva
 
 ## **Project Features**
 
+### Motivation :
+
+In face recognition tasks, illumination conditions and pose play a major bottleneck while trying to get accurate results. We cannot completely rely on image processing pipelines to improve the accuracy under various different conditions. Experiments show that recognition task results on mages in already similar conditions tend to worsen with heavy image processing. We aim to find the balance between image processing techniques and raw images to get the best accuracy in face recognition.
+
 ### **Core Functionalities**
 
-1. **Illumination Normalization**: Utilizes self-quotient imaging for robust feature extraction, making the system invariant to variations in lighting conditions.
+1. **Illumination Normalisation**: Utilises self-quotient imaging for robust feature extraction, making the system invariant to variations in lighting conditions.
 2. **Similarity Computation**:
     - **Cosine Similarity**: Measures the angular similarity between feature vectors, ideal for comparing image data.
     - **Mutual Subspace Method (MSM)**: Employs subspace comparison for improved robustness, especially in video data where appearance changes due to head motion and pose occur.
 3. **Adaptive Density Estimation**:
     - Estimates joint probability density functions that help adjust for illumination differences.
-    - Dynamically learns the alpha-function to combine unprocessed and filtered data based on confusion margins.
+    - Dynamically learns the alpha-function to combine unprocessed and filtered data based on confusion margins. We define the algorithm used for this below.
 
 ### **Interactive Command-Line Interface (CLI)**
 
@@ -44,6 +53,36 @@ The project is structured around several key components that align with the meth
 
 ### **3. Adaptive Framework for Illumination Handling**
 
+The algorithm used for offline training is given as follows : 
+
+Input:
+
+- `training data D(person, illumination)`
+- `filtered data F(person, illumination)`
+- `similarity function p`
+
+Output:
+
+- `estimate p(α, µ)`
+1. `Initialization
+p̂(α, µ) = 0`
+2. `Simulated matching iteration
+for all illuminations i, j and persons p`
+    1. `Confusion margin
+    µ = ρ(D(p, i), D(r1, j)) - ρ(D(p, i), D(r2, j))`
+    2. `Iteration
+    for all k = 0, ..., 1/Δα, α = kΔα`
+        1. `Quantify performance of α
+        δ(kΔα) = αρ(D(p,i),D(p,j))+(1-α)ρ(F(p,i),F(p,j))
+        --------------------------------------------------
+        max{p≠q}[αρ(D(p,i),D(q,j))+(1-α)ρ(F(p,i),F(q,j))]`
+        2. `Update density estimate
+        p̂(kΔα, µ) = p̂(kΔα, µ) + δ(kΔα)`
+3. `Smooth the output
+p̂(α, µ) = p̂(α, µ) * Gσ=0.05`
+4. `Normalize to unit integral
+p̂(α, µ) = p̂(α, µ) / ∫∫ p̂(α, µ) dµ dα`
+
 - **Joint Probability Density Estimation**: A key aspect of the paper's approach is the estimation of joint probability density functions to understand the relationship between the query and gallery images under different lighting. This density estimation helps in identifying the optimal alpha value.
 - **Alpha-Function Estimation**: The adaptive system learns the alpha-function, **`α*`**, which represents the optimal weighting of raw and filtered data based on the "confusion margin" (the difference between the top two matching scores). This dynamic adjustment is critical for improving recognition accuracy in diverse illumination scenarios.
 
@@ -59,7 +98,7 @@ The project is structured around several key components that align with the meth
 
 ### **6. Empirical Evaluation and Results Analysis**
 
-- **Dataset Utilization**: The project uses datasets like **CamFace**, **ToshFace**, **Faces96**, and **YaleDB** to validate the performance of the system, as illustrated in the research paper's experiments.
+- **Dataset Utilization**: The project uses datasets like **YaleDB** to validate the performance of the system, as illustrated in the research paper's experiments.
 - **Performance Metrics**: The system evaluates recognition accuracy, error rate reduction, and variability in performance across different filtering techniques and similarity methods. Results are compared against baseline methods to demonstrate improvements in recognition rates and stability under varying lighting conditions.
 
 Each of these components is designed to align with the insights and techniques proposed in the paper, contributing to an effective illumination-invariant face recognition system
@@ -70,76 +109,106 @@ Each of these components is designed to align with the insights and techniques p
 - **`preview_image()`**: Displays images for visualization using `matplotlib`.
 - **`self_quotient_image()`**: Performs illumination normalization to improve face recognition.
 - **`cosine_similarity()`**: Computes similarity scores between vectors.
-- **`mutual_subspace_method()`**: A sophisticated method for comparing feature subspaces in video sequences.
-- **`plot_density()`**: Visualizes the density landscape for alpha-function estimation.
+- **`mutual_subspace_method()`**: A sophisticated method for comparing feature sub-spaces in video sequences.
+- **`plot_density()`**: Visualises the density landscape for alpha-function estimation.
 
 ---
 
-## **How to Use**
+### **How to Use**
 
-### **1. Prerequisites**
-
-- Python 3.8 or higher
-- Required Python packages: `numpy`, `matplotlib`, `os`, `glob`, and any dependencies from the custom modules (e.g., `adaptive_similarity`, `data_utils`, etc.)
-
-### **2. Running the CLI Tool**
-
-1. **Prepare your dataset**: Ensure the gallery images are in a folder and labeled appropriately.
-2. **Place the query image**: Make sure the query image is accessible.
-3. **Run the command**:
+1. **Install Requirements**
+    
+    Install dependencies using:
     
     ```bash
-    python face_matching_cli.py --data-dir <path_to_gallery> --query-path <path_to_query_image> --method <method_type>
-    
+    pip install -r requirements.txt
     ```
     
-    - `-data-dir`: Path to the directory containing gallery images.
-    - `-query-path`: Path to the query image.
-    - `-method`: Choose between "*cosine*" or "*mutual_subspace*" for similarity comparison (default is "cosine").
-4. **Navigate through results**: The interactive menu will display options to view the query, best match, or unmatched images, and exit the program.
+2. **Prepare Data**
+    - Place **`.jpg`** gallery images in a directory. (Labelled as per required naming system)
+    - Have a query **`.jpg`** image ready.
+3. **Run the App**
+    
+    Execute the script in the `cli`  folder:
+    
+    ```bash
+    python driver.py
+    ```
+    
+4. **Follow Prompts**
+    - Input gallery and query paths.
+    - Select similarity and filter methods.
+    - Configure optional settings like ASCII art preview.
+5. **Menu Options**
+    - Preview images.
+    - View best match.
+    - Use a pretrained model.
+    - Visualize similarities.
+    - Exit when done.
+6. **Results**
+    
+    Outputs include similarity scores, best match details, and optional visualizations saved in **`output/`**
+    
 
 ---
 
-## **Results (Isko actual results ke saath replace karna he)**
+## **Results**
 
 ### **Evaluation Setup**
 
 The algorithm was evaluated using a variety of datasets to assess its robustness under different conditions:
 
-- **CamFace**: Videos with variations in illumination and head motion.
-- **ToshFace**: Controlled video sequences with multi-illumination.
-- **Faces96**: A challenging dataset with pose, scale, and illumination changes.
-- **YaleDB**: Single image per subject, varied illumination conditions.
+- **YaleDB**: Single image per subject, varied illumination conditions and under various expressions.
 
 ### **Key Metrics**
 
 - **Recognition Accuracy**:
-    - **Cosine Similarity**: Baseline performance of ~67% on YaleDB.
-    - **MSM with Self-Quotient Imaging**: Improved performance to ~90% on challenging datasets.
+    - **Cosine Similarity**:  Cosine similarity measures the similarity between two images by treating them as high-dimensional vectors and comparing their orientations in the feature space. It is defined as the cosine of the angle between two vectors, which corresponds to how aligned the images are in the feature space.
+    - **MSM with Self-Quotient Imaging**: The **Mutual Subspace Method (MSM)** is a technique commonly used for recognizing patterns or objects, especially in computer vision tasks like image and video recognition. MSM measures the similarity between two sets of high-dimensional data by comparing the subspaces they span rather than individual data points.
 - **Error Rate Reduction**:
-    - Average error rates were reduced by 50-75% when applying the adaptive alpha-function framework.
+    - Improvement in unfiltered and processed scores of the images give an idea of how the metric is improving the accuracy of the predictions.
+
+### Image Processing Pipelines
+
+Filters used are as follows, motivated by their capability to retain information about lighting and shadows in the image
+
+![image.png](./REPORT/image.png)
+
+These filters store data about the image which doesn’t easily get captured in raw image especially under different lighting.
 
 ### **Graphical Results**
 
 1. **Error Rate Comparison**:
-    - **Figure 1**: Average recognition error rates across different methods and filters.
-    - **Figure 2**: Standard deviation of recognition error rates.
+    - Average recognition improvement rates across different methods and filters.
+    
+    For example : this is for the self-quotient image with the cosine similarity metric.
+    
+    ![image.png](./REPORT/image%201.png)
+    
+    - This shows that for images less similar to the query image, the similarity difference between the adaptive similarity and normal similarity scales indicating that it performs better to get less similar images to better recognition.
 2. **Density Landscape**:
-    - **Figure 3**: Density estimation of the alpha-function, showing optimal weights for combining raw and filtered data.
-3. **Performance Over Time**:
-    - **Figure 4**: A plot showing the improvement in recognition rates when applying the adaptive framework versus unprocessed data.
+    - Density estimation of the alpha-function, showing optimal weights for combining raw and filtered data.
+    - The below landscape depicts probability of a particular weight **`α`** for a given confusion margin where confusion margin is the difference in unprocessed similarities between top 2 similar images
+    
+    ![image.png](./REPORT/image%202.png)
+    
+    ![image.png](./REPORT/image%203.png)
+    
+3. **Performance :**
 
-### **Graphs and Data Analysis**
+We can see that for a query image a trained model gives better recognition rates and the top similarities achieved are accurate. For a quotient image pipeline with cosine similarity, we get the following results:
 
-**Figure 1**: Error rate statistics for different filtering techniques (e.g., raw, high-pass, quotient image).
+![image.png](./REPORT/image%204.png)
 
-**Figure 2**: Standard deviation of recognition errors across all methods, showing reduced variability with the adaptive framework.
+Here, we see that the combined similarity (which uses adaptive weights by estimating optimal alpha) is more than what raw images can achieve by themselves.
 
-**Figure 3**: Density landscape plotting alpha-function estimates over confusion margins.
+1. **Why not image processing alone:** 
 
-**Figure 4**: Comparison of recognition rates before and after applying adaptive methods, highlighting a drastic improvement when using quotient images and adaptive fusion.
+![image.png](./REPORT/image%205.png)
 
 ---
+
+For filtered images, we lose information and it rates all images similar in similar conditions thus masking the actual similarities associated with the illumination conditions. Thus we cannot heavily rely on image processing pipelines to get interpretable results. We can say that the adaptive algorithm can **smoothen the output**.
 
 ## **Learning Overview**
 
@@ -162,6 +231,17 @@ The algorithm was evaluated using a variety of datasets to assess its robustness
 
 ---
 
+## Challenges
+
+- **Skewed training data**: Most of the images we had access to didn’t perform well on traditional face recognition tasks with the samples of the same individual making adaptive weighting still inefficient since the magnitude of inaccuracy was too high to recover.
+- Here is an example query which doesn’t do well on both processed and unprocessed data.
+
+![image.png](./REPORT/image%206.png)
+
+- **Lack of enough examples:** In the dataset we used, we had only 15 subjects under just three illumination conditions.  This makes it hard to learn enough parameters to estimate illumination invariance pipeline completely.
+- **Extreme illuminations**: Extreme illumination condition differences say a left illumination and an extreme right illumination were hard to adapt to even with the adaptive model.
+- **Lack of compute powe**r: Training for even a 100 epoch on a 100*100 grid takes 1 hour, so this took a lot of patience even for extremely simple runs.
+
 ## **Future Enhancements**
 
 1. **Integration with Deep Learning**: Replace handcrafted filters with deep learning models for more robust feature extraction.
@@ -179,4 +259,9 @@ This project effectively demonstrated an illumination-invariant face recognition
 
 - *Arandjelović, O., Cipolla, R.* "A Methodology for Rapid Illumination-Invariant Face Recognition Using Image Processing Filters”
 - Relevant literature on cosine similarity, MSM, and illumination normalization techniques
+
+---
+
+*Link To Implementation Repo:*  [divyanash911/Illumination-invariance-face-recognition at master](https://github.com/divyanash911/Illumination-invariance-face-recognition/tree/master)
+
 ---
