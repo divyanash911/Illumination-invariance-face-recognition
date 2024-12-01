@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
-import os 
+import os
+
 
 def adaptive_similarity(query_image, gallery_images, filter_function, similarity_function):
     """Calculate adaptive similarity using confusion margin."""
@@ -56,12 +57,16 @@ def estimate_joint_probability_persons(
                 similarities_other_persons.append((sim_raw, sim_filtered))
 
         # Step 3: Compute confusion margin (μ)
-        if len(similarities_same_person) >= 2:
-            top_1_sim = max(sim[0] for sim in similarities_same_person)
-            top_2_sim = max(sim[0] for sim in similarities_same_person if sim[0] != top_1_sim)
-            mu = top_1_sim - top_2_sim
-        else:
-            mu = 0
+        # if len(similarities_same_person) >= 2:
+        #     top_1_sim = max(sim[0] for sim in similarities_same_person)
+        #     top_2_sim = max(sim[0] for sim in similarities_same_person if sim[0] != top_1_sim)
+        #     mu = top_1_sim - top_2_sim
+        # else:
+        #     mu = 0
+
+        # Step 3: Compute confusion margin (μ)
+        mu = max(sim[0] for sim in similarities_same_person) - \
+            max(sim[0] for sim in similarities_other_persons)
         mu_idx = np.argmin(np.abs(mu_grid - mu))
 
         # Step 4: Iterate over α grid
@@ -76,7 +81,8 @@ def estimate_joint_probability_persons(
 
             # Compute numerator and denominator for δ(kΔα)
             numerator = max(similarity_query) if similarity_query else 0
-            denominator = max(similarity_other) if similarity_other else 1  # Avoid division by zero
+            # Avoid division by zero
+            denominator = max(similarity_other) if similarity_other else 1
 
             delta = numerator / denominator if denominator != 0 else 0
 
@@ -91,4 +97,3 @@ def estimate_joint_probability_persons(
     density /= np.sum(density)
 
     return alpha_grid, mu_grid, density
-
